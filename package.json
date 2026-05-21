@@ -1,7 +1,7 @@
 {
   "name": "permitstack-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for the PermitStack building permit API — search 15.6M+ US building permits from Claude and other AI agents.",
+  "version": "1.0.1",
+  "description": "MCP server for the PermitStack building permit API — search 33M+ US building permits across 150+ jurisdictions from Claude and other AI agents.",
   "type": "module",
   "bin": {
     "permitstack-mcp": "./dist/index.js"
@@ -33,11 +33,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dannysonfire/permitstack-mcp.git"
+    "url": "git+https://github.com/PermitStack/permitstack-mcp.git"
   },
   "homepage": "https://permit-stack.com",
   "bugs": {
-    "url": "https://github.com/dannysonfire/permitstack-mcp/issues"
+    "url": "https://github.com/PermitStack/permitstack-mcp/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

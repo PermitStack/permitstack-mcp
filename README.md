@@ -4,7 +4,7 @@
 
 MCP (Model Context Protocol) server for the [PermitStack](https://permit-stack.com) building permit API.
 
-Lets Claude and other AI agents natively search 15.6M+ U.S. building permits across 54 cities.
+Lets Claude and other AI agents natively search 33M+ U.S. building permits across 150+ jurisdictions.
 
 ## What does this do?
 
@@ -19,7 +19,7 @@ Claude will call the PermitStack API directly and give you structured results.
 
 ## Installation
 
-You'll need a free PermitStack API key. [Get one in 2 minutes](https://permit-stack.com/#pricing) — the free tier gives you 1,000 requests per day.
+You'll need a free PermitStack API key. [Get one in 2 minutes](https://permit-stack.com/#pricing) — the free tier gives you 100 requests per day.
 
 ### Claude Desktop
 
@@ -62,11 +62,11 @@ Any MCP-compatible client can connect over stdio.
 | `get_property_history` | All permits for an address |
 | `search_contractors` | Find contractors by name/location |
 | `get_contractor_permits` | All permits by a specific contractor |
-| `get_coverage` | List supported cities |
+| `get_coverage` | List supported jurisdictions |
 
 ## Data
 
-- **15.6M+ permits** across 54 U.S. cities
+- **33M+ permits** across 150+ U.S. jurisdictions (cities, counties, and statewide datasets)
 - **Daily refresh** from official city open-data portals
 - **AI-enriched descriptions** for structured category/scope/systems
 
@@ -74,10 +74,12 @@ Full coverage list: https://permit-stack.com/coverage.html
 
 ## Pricing
 
-- Free: 1,000 requests/day
-- Developer: $49/mo (60 req/min, 10K req/day)
-- Startup: $149/mo (+ webhooks, bulk export)
-- Growth: $499/mo (+ daily bulk exports)
+- Free: 100 requests/day
+- Indie: $19/mo (1,000 req/day)
+- Hobbyist: $29/mo (2,500 req/day)
+- Developer: $49/mo (10,000 req/day)
+- Startup: $149/mo (100,000 req/day — webhooks, bulk export)
+- Growth: $499/mo (500,000 req/day — daily bulk exports)
 
 See https://permit-stack.com/#pricing for details.
 
