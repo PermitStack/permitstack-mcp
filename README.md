@@ -88,7 +88,7 @@ See https://permit-stack.com/#pricing for details.
 - 🌐 Homepage: https://permit-stack.com
 - 📖 API Docs: https://api.permit-stack.com/docs
 - 🐍 Python SDK: https://pypi.org/project/permitstack/
-- 💬 Support: support@aisaasfactory.io
+- 💬 Support: support@permit-stack.com
 
 ## License
 

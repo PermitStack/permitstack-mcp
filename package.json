@@ -1,6 +1,6 @@
 {
   "name": "permitstack-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MCP server for the PermitStack building permit API — search 33M+ US building permits across 150+ jurisdictions from Claude and other AI agents.",
   "type": "module",
   "bin": {
@@ -29,7 +29,7 @@
     "api",
     "permitstack"
   ],
-  "author": "PermitStack <support@aisaasfactory.io>",
+  "author": "PermitStack <support@permit-stack.com>",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
