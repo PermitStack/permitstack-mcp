@@ -1,7 +1,7 @@
 {
   "name": "permitstack-mcp",
-  "version": "1.1.4",
-  "description": "MCP server for the PermitStack building permit API — search 62M+ US building permits across 7,000+ cities in all 50 states from Claude and other AI agents.",
+  "version": "1.1.5",
+  "description": "MCP server for the PermitStack building permit API — search 69M+ US building permits across 8,000+ cities in all 50 states from Claude and other AI agents.",
   "type": "module",
   "bin": {
     "permitstack-mcp": "./dist/index.js"
