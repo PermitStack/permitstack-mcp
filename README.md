@@ -75,9 +75,9 @@ Full coverage list: https://permit-stack.com/coverage.html
 ## Pricing
 
 - Free: 100 requests/day
-- Indie: $19/mo (1,000 req/day)
-- Hobbyist: $29/mo (2,500 req/day)
-- Developer: $49/mo (10,000 req/day — webhooks, bulk export)
+- Indie: $29/mo (1,000 req/day)
+- Hobbyist: $39/mo (2,500 req/day)
+- Developer: $79/mo (10,000 req/day — webhooks, bulk export)
 - Business: $149/mo (100,000 req/day)
 - Enterprise: custom (contact us for higher volume + bulk exports)
 
