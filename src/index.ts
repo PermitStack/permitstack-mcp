@@ -18,7 +18,7 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const VERSION = "1.1.2";
+const VERSION = "1.2.0";
 const API_BASE = process.env.PERMITSTACK_API_URL || "https://api.permit-stack.com";
 const API_KEY = process.env.PERMITSTACK_API_KEY;
 
@@ -291,6 +291,77 @@ const TOOLS = [
       properties: {},
     },
     endpoint: "/v1/permits/stats/coverage",
+  },
+  {
+    name: "get_permit_trend",
+    description:
+      "Monthly permit counts and total valuation for a city/state/category — a time series. " +
+      "USE THIS INSTEAD OF search_permits WHENEVER THE QUESTION IS 'HOW MANY' OR 'IS IT " +
+      "TRENDING UP': it answers in one call from a precomputed rollup, where search would " +
+      "need you to page through every matching permit just to count them. " +
+      "Examples: 'how many roofing permits in Jacksonville each month this year', " +
+      "'is solar activity in Phoenix growing'. Requires the Developer plan or above. " +
+      "Counts are rebuilt nightly — the response carries `as_of`, and `undated` counts " +
+      "permits whose source published no date.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        state: { type: "string", description: "Two-letter state code, e.g. FL" },
+        city: { type: "string", description: "City name, e.g. Jacksonville" },
+        category: {
+          type: "string",
+          description:
+            "Permit category, e.g. ROOFING, SOLAR, HVAC, NEW_CONSTRUCTION, PLUMBING, ELECTRICAL",
+        },
+        months: {
+          type: "integer",
+          description: "How many trailing months to return (default 24, max 120)",
+          default: 24,
+        },
+      },
+      required: [],
+    },
+    endpoint: "/v1/metrics/monthly",
+  },
+  {
+    name: "get_permit_totals",
+    description:
+      "Category breakdown for a city or state over a trailing window — 'what kind of work is " +
+      "happening here right now'. One call instead of paginating search. Returns each " +
+      "category with its permit count and total valuation. Requires the Developer plan or " +
+      "above. Whole months only: `days` is rounded to the rollup's monthly grain.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        state: { type: "string", description: "Two-letter state code, e.g. TX" },
+        city: { type: "string", description: "City name, e.g. Austin" },
+        days: {
+          type: "integer",
+          description: "Trailing window in days (default 90, min 28, max 730)",
+          default: 90,
+        },
+      },
+      required: [],
+    },
+    endpoint: "/v1/metrics/current",
+  },
+  {
+    name: "get_busiest_cities",
+    description:
+      "Rank the busiest cities in a state by permit volume, optionally for one trade. " +
+      "Use for 'where is the most roofing work in Florida' style questions. " +
+      "Requires the Developer plan or above.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        state: { type: "string", description: "Two-letter state code, e.g. FL" },
+        category: { type: "string", description: "Optional category, e.g. ROOFING" },
+        months: { type: "integer", description: "Trailing months (default 12)", default: 12 },
+        limit: { type: "integer", description: "How many cities (default 50)", default: 50 },
+      },
+      required: ["state"],
+    },
+    endpoint: "/v1/metrics/cities",
   },
 ] as const;
 
