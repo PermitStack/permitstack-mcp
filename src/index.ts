@@ -7,6 +7,12 @@
  *
  * Requires PERMITSTACK_API_KEY environment variable.
  * Get a free key at https://permit-stack.com
+ *
+ * FREE-TIER WINDOW. A free key can only see the last 30 days. A request for older dates is
+ * not refused -- it is clamped to that window and the response says so via
+ * tier_window_clamped / tier_window_days / tier_window_from. An agent that ignores those
+ * fields will report "no permits" for a property we hold years of history on, which is a
+ * confidently wrong answer rather than a missing one. Paid plans have no date limit.
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -78,7 +84,14 @@ const TOOLS = [
       "Search building permits by location, category, status, date range, and value. " +
       "Use this to find recent permits of a specific type in a city (e.g., 'solar permits in Austin, TX from last month') " +
       "or to filter by contractor work, renovation scope, or property value. " +
-      "Returns a paginated list with addresses, dates, values, contractors, and descriptions.",
+      "Returns a paginated list with addresses, dates, values, contractors, and descriptions. " +
+      "READING THE RESULT: `total` is exact unless `total_capped` is true, in which case it is a " +
+      "floor (the real number is higher) — never report a capped total as exact. If `total_unknown` " +
+      "is true, `total` is null and the count could not be determined; say so rather than guessing. " +
+      "If `tier_window_clamped` is true, the key's plan limited the date range and " +
+      "`tier_window_days`/`tier_window_from` say to what — an empty or small result may reflect that " +
+      "window, not the absence of permits. `locked_fields` lists any field the plan blanked, which is " +
+      "different from a field the source never published.",
     inputSchema: {
       type: "object",
       properties: {
@@ -97,7 +110,9 @@ const TOOLS = [
         category: {
           type: "string",
           description:
-            "Permit category (case-insensitive). Common values: SOLAR, ROOFING, HVAC, NEW_CONSTRUCTION, POOL, ELECTRICAL, PLUMBING, DEMOLITION, MECHANICAL, RENOVATION",
+            "Permit category (case-insensitive). Common values: SOLAR, ROOFING, HVAC, NEW_CONSTRUCTION, POOL, ELECTRICAL, PLUMBING, DEMOLITION, MECHANICAL, RENOVATION. " +
+            "Note: asking for HVAC also returns MECHANICAL and vice versa — HVAC work is routinely filed " +
+            "as MECHANICAL, so the two are one market and querying either alone would miss roughly half of it.",
         },
         status: {
           type: "string",
