@@ -4,7 +4,7 @@
 
 MCP (Model Context Protocol) server for the [PermitStack](https://permit-stack.com) building permit API.
 
-Lets Claude and other AI agents natively search 108M+ U.S. building permits across 10,000+ cities in 48 states and DC.
+Lets Claude and other AI agents natively search 110M+ U.S. building permits across 8,000+ cities in 48 states and DC.
 
 ## What does this do?
 
@@ -69,7 +69,7 @@ Any MCP-compatible client can connect over stdio.
 
 ## Data
 
-- **108M+ permits** across 10,000+ U.S. cities in 48 states and DC (798 active data sources spanning counties + statewide datasets), plus 75 historical archive sources
+- **110M+ permits** across 8,000+ U.S. cities in 48 states and DC (810 active data sources spanning counties + statewide datasets), plus 75 historical archive sources
 - **Daily refresh** from official city open-data portals
 - **AI-enriched descriptions** for structured category/scope/systems
 
@@ -80,11 +80,12 @@ Full coverage list: https://permit-stack.com/coverage.html
 - Free: 100 requests/day
 - Indie: $29/mo (1,000 req/day)
 - Hobbyist: $39/mo (2,500 req/day)
-- Developer: $79/mo (10,000 req/day — webhooks, bulk export)
-- Business: $149/mo (100,000 req/day)
+- Developer: $79/mo (10,000 req/day — webhooks, contractor phone/email, 50,000-row exports)
+- Business: $149/mo (100,000 req/day — /v1/permits/sync change feed, owner mailing address where published)
+- Scale: $499/mo (500,000 req/day)
 - Enterprise: custom (contact us for higher volume + bulk exports)
 
-See https://permit-stack.com/#pricing for details.
+See https://permit-stack.com/pricing/ for details.
 
 ## Links
 
