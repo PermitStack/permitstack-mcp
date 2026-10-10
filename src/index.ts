@@ -24,7 +24,7 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const VERSION = "1.2.9";
+const VERSION = "1.2.10";
 const API_BASE = process.env.PERMITSTACK_API_URL || "https://api.permit-stack.com";
 const API_KEY = process.env.PERMITSTACK_API_KEY;
 
