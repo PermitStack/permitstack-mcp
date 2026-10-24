@@ -69,7 +69,7 @@ Any MCP-compatible client can connect over stdio.
 
 ## Data
 
-- **119M+ permits** across 8,000+ U.S. cities in 48 states and DC (898 active data sources spanning counties + statewide datasets), plus 75 historical archive sources
+- **119M+ permits** across 8,000+ U.S. cities in 48 states and DC (900 active data sources spanning counties + statewide datasets), plus 75 historical archive sources
 - **Daily refresh** from official city open-data portals
 - **AI-enriched descriptions** for structured category/scope/systems
 
