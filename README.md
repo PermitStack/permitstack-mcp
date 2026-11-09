@@ -4,7 +4,7 @@
 
 MCP (Model Context Protocol) server for the [PermitStack](https://permit-stack.com) building permit API.
 
-Lets Claude and other AI agents natively search 119M+ U.S. building permits across 8,000+ cities in 48 states and DC.
+Lets connected AI agents query U.S. permit data, code violations and complaints, and development-pipeline records.
 
 ## What does this do?
 
@@ -69,7 +69,7 @@ Any MCP-compatible client can connect over stdio.
 
 ## Data
 
-- **119M+ permits** across 8,000+ U.S. cities in 48 states and DC (902 active data sources spanning counties + statewide datasets), plus 75 historical archive sources
+- **121M+ permits** across 8,000+ U.S. cities in 48 states and DC (905 active data sources spanning counties + statewide datasets), plus 75 historical archive sources
 - **Daily refresh** from official city open-data portals
 - **AI-enriched descriptions** for structured category/scope/systems
 
@@ -97,3 +97,9 @@ See https://permit-stack.com/pricing/ for details.
 ## License
 
 Apache-2.0. See LICENSE for details.
+
+## Launch dataset tools (1.3.0 candidate)
+
+`search_violations`, `get_violation` and `get_violation_coverage` expose agency findings, complaints and source coverage. `search_pipeline_cases`, `get_pipeline_case`, `search_pipeline_decisions` and `get_pipeline_coverage` expose planning cases and public meeting decisions.
+
+For example, ask for open violation findings in a city, or upcoming zoning hearings in that city. Complaints are separate from findings. Permit links describe a site/time match, not proof of approval. Search pages are capped at 25 records; account restrictions and API errors use neutral wording. No checkout or billing tool is included.

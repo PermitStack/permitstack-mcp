@@ -10,10 +10,12 @@
  *
  * FREE-TIER WINDOW. A free key can only see the last 30 days. A request for older dates is
  * not refused -- it is clamped to that window and the response says so via
- * tier_window_clamped / tier_window_days / tier_window_from. An agent that ignores those
+ * account_window_clamped / account_window_days / account_window_from. An agent that ignores those
  * fields will report "no permits" for a property we hold years of history on, which is a
  * confidently wrong answer rather than a missing one. Paid plans have no date limit.
  */
+
+import { sanitizeOutput, neutralError } from "./output.js";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -24,7 +26,7 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const VERSION = "1.2.11";
+const VERSION = "1.3.0";
 const API_BASE = process.env.PERMITSTACK_API_URL || "https://api.permit-stack.com";
 const API_KEY = process.env.PERMITSTACK_API_KEY;
 
@@ -57,14 +59,13 @@ async function apiRequest(
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
     throw new McpError(
       ErrorCode.InternalError,
-      `PermitStack API error ${response.status}: ${body || response.statusText}`
+      neutralError(response.status)
     );
   }
 
-  return response.json();
+  return sanitizeOutput(await response.json());
 }
 
 /**
@@ -78,6 +79,442 @@ async function apiRequest(
  *                  (e.g. /v1/contractors/{contractor_id}/permits).
  */
 const TOOLS = [
+{
+  "name": "search_violations",
+  "description": "Search agency findings by place, case number, status, category and date. record_kind defaults to violation; complaint returns reports, not established violations. total_capped means total is a lower bound; total_unknown means total is unknown. Source metadata states data_through, coverage_window and count_unit.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "address": {
+        "type": "string",
+        "description": "Street address, partial, case-insensitive"
+      },
+      "parcel": {
+        "type": "string",
+        "description": "Parcel / APN / folio / BBL (formatting ignored)"
+      },
+      "city": {
+        "type": "string",
+        "description": "City name (matches the address city or the issuing jurisdiction)"
+      },
+      "state": {
+        "type": "string",
+        "description": "2-letter state code"
+      },
+      "zip_code": {
+        "type": "string",
+        "description": "5-digit ZIP"
+      },
+      "jurisdiction_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "A jurisdiction id from /v1/jurisdictions"
+      },
+      "lat": {
+        "type": "number"
+      },
+      "lng": {
+        "type": "number"
+      },
+      "radius_miles": {
+        "type": "number",
+        "maximum": 50,
+        "exclusiveMinimum": 0,
+        "description": "Radius in miles around lat/lng (default 1)"
+      },
+      "date_after": {
+        "type": "string",
+        "format": "date",
+        "description": "record_date on or after (undated records never match)"
+      },
+      "date_before": {
+        "type": "string",
+        "format": "date",
+        "description": "record_date on or before"
+      },
+      "status": {
+        "enum": [
+          "OPEN",
+          "CLOSED",
+          "COMPLIED",
+          "ABATED",
+          "CITED",
+          "DISMISSED",
+          "UNKNOWN"
+        ],
+        "type": "string",
+        "description": "OPEN, CLOSED, COMPLIED, ABATED, CITED, DISMISSED or UNKNOWN"
+      },
+      "open_only": {
+        "type": "boolean",
+        "description": "Only OPEN records (a citation or judgment is not open)",
+        "default": false
+      },
+      "category": {
+        "enum": [
+          "STRUCTURAL",
+          "HOUSING",
+          "ZONING",
+          "PROPERTY_MAINTENANCE",
+          "NUISANCE",
+          "UNSAFE",
+          "VACANT",
+          "FIRE",
+          "SIGN",
+          "WORK_WITHOUT_PERMIT",
+          "ENVIRONMENTAL",
+          "OTHER"
+        ],
+        "type": "string",
+        "description": "Normalised category, e.g. HOUSING, UNSAFE, WORK_WITHOUT_PERMIT"
+      },
+      "record_kind": {
+        "enum": [
+          "violation",
+          "complaint",
+          "all"
+        ],
+        "type": "string",
+        "description": "'violation' (default): violations, citations and orders the agency found. 'complaint': reports it received, and cases with no evidence a violation was found. 'all': both. Complaints are never counted as violations.",
+        "default": "violation"
+      },
+      "case_number": {
+        "type": "string",
+        "description": "The agency's case / complaint number"
+      },
+      "include_uncounted": {
+        "type": "boolean",
+        "description": "Also return records stored but never counted: voided, withdrawn, rescinded or issued in error, and process steps",
+        "default": false
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1
+      },
+      "per_page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 25,
+        "maximum": 25
+      }
+    }
+  },
+  "endpoint": "/v1/violations/search"
+},
+{
+  "name": "get_violation",
+  "description": "Retrieve one record by the UUID returned by search_violations, including source status and related copies. A complaint is not an established violation. Coverage and fines depend on the source.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "violation_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "required": [
+      "violation_id"
+    ]
+  },
+  "endpoint": "/v1/violations/{violation_id}"
+},
+{
+  "name": "get_violation_coverage",
+  "description": "List source and place coverage for code violations and complaints, optionally within a state. Reports measured data_through, history window, count_unit and separate violation and complaint counts. Requires a connected account.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "state": {
+        "type": "string",
+        "description": "2-letter state code"
+      }
+    }
+  },
+  "endpoint": "/v1/violations/coverage"
+},
+{
+  "name": "search_pipeline_cases",
+  "description": "Search planning and zoning cases by place, case type, status, case number and filing, hearing or decision dates. Undated cases do not match date filters. total_capped marks a lower bound; total_unknown marks an unknown count. Sources carry measured data_through.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "city": {
+        "type": "string",
+        "description": "City name (matches the address city or the issuing jurisdiction)"
+      },
+      "state": {
+        "type": "string",
+        "description": "2-letter state code"
+      },
+      "zip_code": {
+        "type": "string",
+        "description": "5-digit ZIP"
+      },
+      "jurisdiction_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "A jurisdiction id from /v1/jurisdictions"
+      },
+      "address": {
+        "type": "string",
+        "description": "Street address, partial, case-insensitive"
+      },
+      "parcel": {
+        "type": "string",
+        "description": "Parcel / APN / folio (formatting ignored)"
+      },
+      "lat": {
+        "type": "number"
+      },
+      "lng": {
+        "type": "number"
+      },
+      "radius_miles": {
+        "type": "number",
+        "maximum": 50,
+        "exclusiveMinimum": 0,
+        "description": "Radius in miles around lat/lng (default 1)"
+      },
+      "case_type": {
+        "enum": [
+          "REZONING",
+          "SITE_PLAN",
+          "SUBDIVISION_PLAT",
+          "VARIANCE",
+          "CONDITIONAL_USE",
+          "ANNEXATION",
+          "PUD",
+          "COMPREHENSIVE_PLAN",
+          "DEMOLITION_REVIEW",
+          "HISTORIC_REVIEW",
+          "OTHER"
+        ],
+        "type": "string",
+        "description": "REZONING, SITE_PLAN, SUBDIVISION_PLAT, VARIANCE, CONDITIONAL_USE, ..."
+      },
+      "status": {
+        "enum": [
+          "FILED",
+          "UNDER_REVIEW",
+          "HEARING_SCHEDULED",
+          "APPROVED",
+          "APPROVED_WITH_CONDITIONS",
+          "DENIED",
+          "WITHDRAWN",
+          "TABLED",
+          "APPEALED",
+          "CLOSED",
+          "UNKNOWN"
+        ],
+        "type": "string",
+        "description": "Normalised case status"
+      },
+      "case_number": {
+        "type": "string",
+        "description": "The case number as published (formatting ignored)"
+      },
+      "filed_after": {
+        "type": "string",
+        "format": "date"
+      },
+      "filed_before": {
+        "type": "string",
+        "format": "date"
+      },
+      "hearing_after": {
+        "type": "string",
+        "format": "date",
+        "description": "Hearing on or after (may be in the future)"
+      },
+      "hearing_before": {
+        "type": "string",
+        "format": "date"
+      },
+      "decided_after": {
+        "type": "string",
+        "format": "date"
+      },
+      "decided_before": {
+        "type": "string",
+        "format": "date"
+      },
+      "min_units": {
+        "type": "integer",
+        "minimum": 0,
+        "description": "Dwelling units proposed, at least (the source's structured unit count)"
+      },
+      "min_acres": {
+        "type": "number",
+        "minimum": 0
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1
+      },
+      "per_page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 25,
+        "maximum": 25
+      }
+    }
+  },
+  "endpoint": "/v1/pipeline/cases/search"
+},
+{
+  "name": "get_pipeline_case",
+  "description": "Retrieve one case by the UUID returned by search_pipeline_cases, with linked meeting decisions and permits. A permit link is a match by site and time, not proof the permit was issued under this case. link_method and confidence describe the match.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "case_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "required": [
+      "case_id"
+    ]
+  },
+  "endpoint": "/v1/pipeline/cases/{case_id}"
+},
+{
+  "name": "search_pipeline_decisions",
+  "description": "Search council, commission and zoning-board decisions by place, body, outcome and meeting date. land_use defaults to only. A decision is distinct from a filed case and an issued permit. total_capped marks a lower bound; total_unknown marks an unknown count.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "city": {
+        "type": "string",
+        "description": "City name (matches the address city or the deciding jurisdiction)"
+      },
+      "state": {
+        "type": "string",
+        "description": "2-letter state code"
+      },
+      "jurisdiction_id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "address": {
+        "type": "string",
+        "description": "Street address named in the item, partial"
+      },
+      "body": {
+        "type": "string",
+        "description": "Deciding body, partial ('Planning Commission', 'Zoning')"
+      },
+      "outcome": {
+        "enum": [
+          "APPROVED",
+          "APPROVED_WITH_CONDITIONS",
+          "DENIED",
+          "RECOMMENDED_APPROVAL",
+          "RECOMMENDED_DENIAL",
+          "TABLED",
+          "WITHDRAWN",
+          "REFERRED",
+          "FIRST_READING",
+          "RECEIVED",
+          "NO_ACTION",
+          "OTHER",
+          "UNKNOWN"
+        ],
+        "type": "string",
+        "description": "Normalised action: APPROVED, DENIED, RECOMMENDED_APPROVAL, TABLED, ..."
+      },
+      "land_use": {
+        "enum": [
+          "only",
+          "all"
+        ],
+        "type": "string",
+        "description": "'only' (default): land-use items; 'all': every stored item",
+        "default": "only"
+      },
+      "land_use_type": {
+        "enum": [
+          "REZONING",
+          "SITE_PLAN",
+          "SUBDIVISION_PLAT",
+          "VARIANCE",
+          "CONDITIONAL_USE",
+          "ANNEXATION",
+          "PUD",
+          "COMPREHENSIVE_PLAN",
+          "DEMOLITION_REVIEW",
+          "HISTORIC_REVIEW",
+          "OTHER"
+        ],
+        "type": "string"
+      },
+      "case_number": {
+        "type": "string",
+        "description": "A case number named in the item (formatting ignored)"
+      },
+      "matter_file": {
+        "type": "string",
+        "description": "The clerk's file number"
+      },
+      "linked": {
+        "type": "boolean",
+        "description": "true: only items linked to a planning case we hold"
+      },
+      "meeting_after": {
+        "type": "string",
+        "format": "date"
+      },
+      "meeting_before": {
+        "type": "string",
+        "format": "date"
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1
+      },
+      "per_page": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 25,
+        "maximum": 25
+      }
+    }
+  },
+  "endpoint": "/v1/pipeline/decisions/search"
+},
+{
+  "name": "get_pipeline_coverage",
+  "description": "List source and place coverage for planning cases and decisions, optionally within a state. dataset selects cases, decisions or all. Reports measured data_through and counts; decision records count land-use items. Requires a connected account.",
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "state": {
+        "type": "string",
+        "description": "2-letter state code"
+      },
+      "dataset": {
+        "enum": [
+          "cases",
+          "decisions",
+          "all"
+        ],
+        "type": "string",
+        "default": "all"
+      }
+    }
+  },
+  "endpoint": "/v1/pipeline/coverage"
+},
   {
     name: "search_permits",
     description:
@@ -86,12 +523,11 @@ const TOOLS = [
       "or to filter by contractor work, renovation scope, or property value. " +
       "Returns a paginated list with addresses, dates, values, contractors, and descriptions. " +
       "READING THE RESULT: `total` is exact unless `total_capped` is true, in which case it is a " +
-      "floor (the real number is higher) — never report a capped total as exact. If `total_unknown` " +
+      "floor (the real number is higher) ; never report a capped total as exact. If `total_unknown` " +
       "is true, `total` is null and the count could not be determined; say so rather than guessing. " +
-      "If `tier_window_clamped` is true, the key's plan limited the date range and " +
-      "`tier_window_days`/`tier_window_from` say to what — an empty or small result may reflect that " +
-      "window, not the absence of permits. `locked_fields` lists any field the plan blanked, which is " +
-      "different from a field the source never published.",
+      "If `account_window_clamped` is true, the connected account limited the date range and " +
+      "`account_window_days`/`account_window_from` say to what ; an empty or small result may reflect that " +
+      "window, not the absence of permits. Source omissions and account restrictions are distinct.",
     inputSchema: {
       type: "object",
       properties: {
@@ -111,7 +547,7 @@ const TOOLS = [
           type: "string",
           description:
             "Permit category (case-insensitive). Common values: SOLAR, ROOFING, HVAC, NEW_CONSTRUCTION, POOL, ELECTRICAL, PLUMBING, DEMOLITION, MECHANICAL, RENOVATION. " +
-            "Note: asking for HVAC also returns MECHANICAL and vice versa — HVAC work is routinely filed " +
+            "Note: asking for HVAC also returns MECHANICAL and vice versa ; HVAC work is routinely filed " +
             "as MECHANICAL, so the two are one market and querying either alone would miss roughly half of it.",
         },
         status: {
@@ -124,19 +560,19 @@ const TOOLS = [
         },
         filed_after: {
           type: "string",
-          description: "ISO date (YYYY-MM-DD) — only permits filed on or after this date",
+          description: "ISO date (YYYY-MM-DD) ; only permits filed on or after this date",
         },
         filed_before: {
           type: "string",
-          description: "ISO date (YYYY-MM-DD) — only permits filed on or before this date",
+          description: "ISO date (YYYY-MM-DD) ; only permits filed on or before this date",
         },
         issued_after: {
           type: "string",
-          description: "ISO date (YYYY-MM-DD) — only permits issued on or after this date",
+          description: "ISO date (YYYY-MM-DD) ; only permits issued on or after this date",
         },
         issued_before: {
           type: "string",
-          description: "ISO date (YYYY-MM-DD) — only permits issued on or before this date",
+          description: "ISO date (YYYY-MM-DD) ; only permits issued on or before this date",
         },
         min_value: {
           type: "number",
@@ -213,7 +649,7 @@ const TOOLS = [
     name: "get_property_history",
     description:
       "Get the full permit history for a property street address. Useful for understanding what work has been done " +
-      "on a building — renovations, additions, systems replacements, solar, roofing. Covers all permit categories. " +
+      "on a building ; renovations, additions, systems replacements, solar, roofing. Covers all permit categories. " +
       "Pass only the street address (e.g. '123 Main St'); do not append city/state.",
     inputSchema: {
       type: "object",
@@ -310,13 +746,13 @@ const TOOLS = [
   {
     name: "get_permit_trend",
     description:
-      "Monthly permit counts and total valuation for a city/state/category — a time series. " +
+      "Monthly permit counts and total valuation for a city/state/category ; a time series. " +
       "USE THIS INSTEAD OF search_permits WHENEVER THE QUESTION IS 'HOW MANY' OR 'IS IT " +
       "TRENDING UP': it answers in one call from a precomputed rollup, where search would " +
       "need you to page through every matching permit just to count them. " +
       "Examples: 'how many roofing permits in Jacksonville each month this year', " +
-      "'is solar activity in Phoenix growing'. Requires the Developer plan or above. " +
-      "Counts are rebuilt nightly — the response carries `as_of`, and `undated` counts " +
+      "'is solar activity in Phoenix growing'. Availability depends on the connected account. " +
+      "Counts are rebuilt nightly ; the response carries `as_of`, and `undated` counts " +
       "permits whose source published no date.",
     inputSchema: {
       type: "object",
@@ -341,10 +777,10 @@ const TOOLS = [
   {
     name: "get_permit_totals",
     description:
-      "Category breakdown for a city or state over a trailing window — 'what kind of work is " +
+      "Category breakdown for a city or state over a trailing window ; 'what kind of work is " +
       "happening here right now'. One call instead of paginating search. Returns each " +
-      "category with its permit count and total valuation. Requires the Developer plan or " +
-      "above. Whole months only: `days` is rounded to the rollup's monthly grain.",
+      "category with its permit count and total valuation. Availability depends on the connected " +
+      "account. Whole months only: `days` is rounded to the rollup's monthly grain.",
     inputSchema: {
       type: "object",
       properties: {
@@ -365,7 +801,7 @@ const TOOLS = [
     description:
       "Rank the busiest cities in a state by permit volume, optionally for one trade. " +
       "Use for 'where is the most roofing work in Florida' style questions. " +
-      "Requires the Developer plan or above.",
+      "Availability depends on the connected account.",
     inputSchema: {
       type: "object",
       properties: {
@@ -444,7 +880,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
 
-  const { path, params } = buildRequest(tool, (args ?? {}) as Record<string, unknown>);
+  const requestArgs = { ...(args ?? {}) } as Record<string, unknown>;
+  const datasetTool = /^((search|get)_violations?|get_violation_coverage|search_pipeline_cases|search_pipeline_decisions|get_pipeline_case|get_pipeline_coverage)$/.test(name);
+  if (datasetTool) {
+    const props = tool.inputSchema.properties as Record<string, unknown>;
+    for (const key of Object.keys(requestArgs)) {
+      if (!(key in props)) throw new McpError(ErrorCode.InvalidParams, `Unknown argument: ${key}`);
+    }
+    for (const key of ["page", "per_page"]) {
+      if (!(key in props)) continue;
+      const n = Number(requestArgs[key] ?? (key === "page" ? 1 : 25));
+      if (!Number.isInteger(n) || n < 1) throw new McpError(ErrorCode.InvalidParams, `${key} must be a positive integer.`);
+      requestArgs[key] = key === "per_page" ? Math.min(n, 25) : n;
+    }
+    for (const key of ["violation_id", "case_id"]) {
+      if (!(key in props)) continue;
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(requestArgs[key] ?? ""))) {
+        throw new McpError(ErrorCode.InvalidParams, `${key} must be a UUID returned by the corresponding search.`);
+      }
+    }
+  }
+  const { path, params } = buildRequest(tool, requestArgs);
   const result = await apiRequest(path, params);
 
   return {
